@@ -1,0 +1,6 @@
+finding_number,finding
+1,"The filtered dataset contains 8,131 recorded disaster-country records across 215 countries and 25 represented years (2000–2024)."
+2,"Flood is the most frequently recorded hazard, accounting for 50.8% of records. This describes the dataset, not necessarily the true global frequency of each hazard."
+3,The highest-recorded year is 2005 (383 records).
+4,The lowest-recorded year is 2014 (274 records).
+5,"Reported deaths are available for 70.2% of event records, while reported affected-person values are available for 79.2%. Missing impact values limit comparisons of disaster severity."

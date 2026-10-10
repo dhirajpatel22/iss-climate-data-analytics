@@ -282,11 +282,18 @@ def build_country_impact_summary(country_year_df, min_years=5):
     df["population"] = pd.to_numeric(df[POPULATION_INDICATOR], errors="coerce")
     df["deaths_per_100k"] = df["deaths_reported_sum"] / df["population"] * 100_000
     df["affected_per_100k"] = df["affected_people_reported_sum"] / df["population"] * 100_000
+    df["valid_impact_year"] = (
+        df["population"].notna()
+        & (
+            df["deaths_reported_sum"].notna()
+            | df["affected_people_reported_sum"].notna()
+        )
+    )
 
     summary = (
         df.groupby("country")
         .agg(
-            years_with_data=("year", "nunique"),
+            years_with_data=("valid_impact_year", "sum"),
             total_reported_deaths=("deaths_reported_sum", lambda s: s.sum(min_count=1)),
             total_reported_affected=("affected_people_reported_sum", lambda s: s.sum(min_count=1)),
             mean_annual_deaths_per_100k=("deaths_per_100k", "mean"),
@@ -367,6 +374,427 @@ def save_week7_charts(annual, severity, countries, output_dir):
     chart_paths.append(path)
 
     return chart_paths
+
+
+# ============================================================
+# ISS WEEK 9 — FINAL PRESENTATION AND SYNTHESIS
+# ============================================================
+
+WEEK9_OUTPUT_DIR = Path("iss_week9_outputs")
+
+
+def save_heatmap(pivot_df, title, xlabel, ylabel, output_path,
+                 colorbar_label="Recorded disaster-country records"):
+    """Save a readable heatmap and its underlying matrix."""
+    if pivot_df.empty or pivot_df.size == 0:
+        print(f"Skipping empty heatmap: {title}")
+        return None
+
+    # Prevent a chart from being generated when every cell is missing.
+    values = pivot_df.to_numpy(dtype=float)
+    if not np.isfinite(values).any():
+        print(f"Skipping heatmap without numeric data: {title}")
+        return None
+
+    fig_width = max(10, min(18, pivot_df.shape[1] * 0.55 + 4))
+    fig_height = max(5.5, min(16, pivot_df.shape[0] * 0.32 + 2.5))
+
+    fig, ax = plt.subplots(figsize=(fig_width, fig_height))
+    image = ax.imshow(values, aspect="auto", cmap="YlOrRd",
+                      interpolation="nearest")
+
+    ax.set_title(title, fontsize=14, pad=14)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+
+    ax.set_xticks(np.arange(len(pivot_df.columns)))
+    ax.set_xticklabels(
+        [str(x) for x in pivot_df.columns],
+        rotation=45, ha="right", fontsize=8
+    )
+    ax.set_yticks(np.arange(len(pivot_df.index)))
+    ax.set_yticklabels(
+        [str(y) for y in pivot_df.index],
+        fontsize=8
+    )
+
+    colorbar = fig.colorbar(image, ax=ax, shrink=0.85)
+    colorbar.set_label(colorbar_label)
+
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=250, bbox_inches="tight")
+    plt.close(fig)
+    return output_path
+
+
+def create_week9_visualizations(event_df, country_year_df, output_dir):
+    """Create final presentation-ready visualizations and heatmap data."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+    chart_paths = []
+
+    # 1. Heatmap: disaster type by year.
+    # Each cell is the number of recorded disaster-country rows.
+    year_type = pd.crosstab(
+        event_df["disaster_type_clean"].str.title(),
+        event_df["year"]
+    ).sort_index()
+
+    year_type_csv = output_dir / "week9_heatmap_disaster_type_by_year.csv"
+    year_type.to_csv(year_type_csv)
+
+    path = save_heatmap(
+        year_type,
+        "Recorded Disaster Records by Hazard and Year (2000–2024)",
+        "Year",
+        "Disaster type",
+        output_dir / "week9_heatmap_disaster_type_by_year.png"
+    )
+    if path:
+        chart_paths.append(path)
+
+    # 2. Heatmap: countries with the most records by hazard type.
+    # This is a descriptive comparison, not a ranking of true disaster risk.
+    country_type = pd.crosstab(
+        event_df["country"],
+        event_df["disaster_type_clean"].str.title()
+    )
+
+    top_country_names = (
+        event_df["country"].value_counts().head(15).index
+    )
+    country_type = country_type.reindex(top_country_names).fillna(0)
+    country_type = country_type.reindex(
+        sorted(country_type.columns), axis=1
+    )
+
+    country_type_csv = (
+        output_dir / "week9_heatmap_top_countries_by_hazard.csv"
+    )
+    country_type.to_csv(country_type_csv)
+
+    path = save_heatmap(
+        country_type,
+        "Disaster Records by Hazard: 15 Countries with Most Records",
+        "Disaster type",
+        "Country",
+        output_dir / "week9_heatmap_top_countries_by_hazard.png"
+    )
+    if path:
+        chart_paths.append(path)
+
+    # 3. Annual trend with a three-year rolling average.
+    annual = (
+        event_df.groupby("year")
+        .size()
+        .rename("recorded_records")
+        .reset_index()
+        .sort_values("year")
+    )
+    annual["three_year_average"] = (
+        annual["recorded_records"].rolling(3, min_periods=1).mean()
+    )
+    annual.to_csv(
+        output_dir / "week9_annual_trend_data.csv", index=False
+    )
+
+    fig, ax = plt.subplots(figsize=(11, 5.5))
+    ax.bar(
+        annual["year"], annual["recorded_records"],
+        alpha=0.65, label="Annual records"
+    )
+    ax.plot(
+        annual["year"], annual["three_year_average"],
+        linewidth=2.5, marker="o", markersize=3,
+        label="Three-year rolling average"
+    )
+    ax.set_title("Recorded Climate-Related Disaster Records Over Time")
+    ax.set_xlabel("Year")
+    ax.set_ylabel("Recorded disaster-country records")
+    ax.legend()
+    ax.grid(axis="y", alpha=0.25)
+    fig.tight_layout()
+
+    path = output_dir / "week9_final_annual_trend.png"
+    fig.savefig(path, dpi=250, bbox_inches="tight")
+    plt.close(fig)
+    chart_paths.append(path)
+
+    # 4. Disaster type share.
+    type_counts = (
+        event_df["disaster_type_clean"]
+        .value_counts()
+        .rename_axis("disaster_type")
+        .reset_index(name="records")
+    )
+    type_counts["share_percent"] = (
+        type_counts["records"] / type_counts["records"].sum() * 100
+    )
+    type_counts.to_csv(
+        output_dir / "week9_disaster_type_shares.csv", index=False
+    )
+
+    type_plot = type_counts.sort_values("records")
+    fig, ax = plt.subplots(figsize=(9, 5.5))
+    ax.barh(type_plot["disaster_type"], type_plot["records"])
+    ax.set_title("Recorded Disaster Records by Hazard Type")
+    ax.set_xlabel("Number of records")
+    ax.set_ylabel("Disaster type")
+    ax.grid(axis="x", alpha=0.25)
+    fig.tight_layout()
+
+    path = output_dir / "week9_final_hazard_comparison.png"
+    fig.savefig(path, dpi=250, bbox_inches="tight")
+    plt.close(fig)
+    chart_paths.append(path)
+
+    # 5. Impact reporting coverage.
+    impact_coverage = pd.DataFrame({
+        "impact_measure": ["Deaths", "People affected"],
+        "records_with_reported_values": [
+            event_df["deaths_reported"].notna().sum(),
+            event_df["people_affected_reported"].notna().sum()
+        ],
+    })
+    impact_coverage["total_records"] = len(event_df)
+    impact_coverage["reporting_percent"] = (
+        impact_coverage["records_with_reported_values"]
+        / max(len(event_df), 1) * 100
+    )
+    impact_coverage.to_csv(
+        output_dir / "week9_impact_reporting_coverage.csv", index=False
+    )
+
+    fig, ax = plt.subplots(figsize=(8, 4.5))
+    bars = ax.bar(
+        impact_coverage["impact_measure"],
+        impact_coverage["reporting_percent"]
+    )
+    ax.bar_label(bars, fmt="%.1f%%", padding=3)
+    ax.set_ylim(0, 110)
+    ax.set_title("Share of Records with Reported Human Impacts")
+    ax.set_ylabel("Records with reported values (%)")
+    ax.grid(axis="y", alpha=0.25)
+    fig.tight_layout()
+
+    path = output_dir / "week9_impact_reporting_coverage.png"
+    fig.savefig(path, dpi=250, bbox_inches="tight")
+    plt.close(fig)
+    chart_paths.append(path)
+
+    return chart_paths
+
+
+def create_week9_synthesis(
+    event_df,
+    country_year_df,
+    annual_impact,
+    severity_summary,
+    disaster_type_summary,
+    source_path,
+    output_dir,
+):
+    """Generate evidence-based findings, recommendations, limitations,
+    sources, and a slide-by-slide presentation outline."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    total_records = len(event_df)
+    countries_count = event_df["country"].nunique()
+    years_count = event_df["year"].nunique()
+
+    type_counts = event_df["disaster_type_clean"].value_counts()
+    dominant_type = type_counts.index[0]
+    dominant_share = type_counts.iloc[0] / max(total_records, 1) * 100
+
+    highest_year = (
+        annual_impact.loc[annual_impact["recorded_events"].idxmax()]
+        if not annual_impact.empty else None
+    )
+    lowest_year = (
+        annual_impact.loc[annual_impact["recorded_events"].idxmin()]
+        if not annual_impact.empty else None
+    )
+
+    death_coverage = (
+        event_df["deaths_reported"].notna().mean() * 100
+        if total_records else 0
+    )
+    affected_coverage = (
+        event_df["people_affected_reported"].notna().mean() * 100
+        if total_records else 0
+    )
+
+    findings = [
+        (
+            f"The filtered dataset contains {total_records:,} recorded "
+            f"disaster-country records across {countries_count:,} countries "
+            f"and {years_count:,} represented years ({START_YEAR}–{END_YEAR})."
+        ),
+        (
+            f"{dominant_type.title()} is the most frequently recorded "
+            f"hazard, accounting for {dominant_share:.1f}% of records. "
+            "This describes the dataset, not necessarily the true global "
+            "frequency of each hazard."
+        ),
+        (
+            f"The highest-recorded year is {int(highest_year['year'])} "
+            f"({int(highest_year['recorded_events']):,} records)."
+            if highest_year is not None
+            else "Annual peak could not be calculated."
+        ),
+        (
+            f"The lowest-recorded year is {int(lowest_year['year'])} "
+            f"({int(lowest_year['recorded_events']):,} records)."
+            if lowest_year is not None
+            else "Annual minimum could not be calculated."
+        ),
+        (
+            f"Reported deaths are available for {death_coverage:.1f}% "
+            f"of event records, while reported affected-person values "
+            f"are available for {affected_coverage:.1f}%. "
+            "Missing impact values limit comparisons of disaster severity."
+        ),
+    ]
+
+    recommendations = [
+        (
+            "Prioritize local hazard preparedness using regional risk "
+            "assessments, infrastructure exposure, and community input; "
+            "do not allocate resources based on raw counts alone."
+        ),
+        (
+            "Improve consistent reporting of deaths, affected populations, "
+            "event dates, locations, and uncertainty so impacts can be "
+            "compared more reliably across countries and years."
+        ),
+        (
+            "Use hazard-specific early-warning systems, evacuation plans, "
+            "and resilient infrastructure appropriate to local conditions."
+        ),
+        (
+            "Combine disaster records with climate observations, exposure, "
+            "vulnerability, and longer-term trend analyses before making "
+            "claims about climate change attribution or causal effects."
+        ),
+    ]
+
+    limitations = [
+        "EM-DAT records represent reported disaster-country records; a row "
+        "should not automatically be interpreted as a unique global event.",
+        "Recorded counts depend on database inclusion rules, reporting "
+        "capacity, event classification, and changes in data coverage.",
+        "Blank death and affected-person fields represent missing or "
+        "unreported information, not confirmed zero impact.",
+        "Population-adjusted counts do not account for differences in "
+        "exposure, vulnerability, preparedness, or reporting quality.",
+        "Country and hazard rankings may be distorted by differences in "
+        "coverage and reporting practices.",
+        "World Bank population and GDP indicators may be missing for some "
+        "countries or years; GDP per capita is not a direct measure of "
+        "preparedness or resilience.",
+        "This observational analysis cannot establish that climate change "
+        "caused individual disasters or explain trends on its own.",
+        "The selected hazards and 2000–2024 period do not cover every "
+        "disaster category or historical period.",
+    ]
+
+    sources = [
+        "EM-DAT, The International Disaster Database, Centre for Research "
+        "on the Epidemiology of Disasters (CRED): "
+        "https://public.emdat.be/data",
+        "World Bank Indicators API — Population (SP.POP.TOTL): "
+        "https://api.worldbank.org/v2/country/all/indicator/SP.POP.TOTL",
+        "World Bank Indicators API — GDP per capita, current US$ "
+        "(NY.GDP.PCAP.CD): "
+        "https://api.worldbank.org/v2/country/all/indicator/NY.GDP.PCAP.CD",
+        "Python libraries used: pandas, NumPy, Matplotlib, requests, "
+        "and openpyxl. These are analysis tools, not independent data sources.",
+    ]
+
+    report_lines = [
+        "ISS WEEK 9 — FINAL PRESENTATION SYNTHESIS",
+        f"Study period: {START_YEAR}–{END_YEAR}",
+        f"Input file: {source_path.name}",
+        "",
+        "KEY FINDINGS",
+    ]
+    report_lines.extend(
+        f"{i}. {finding}" for i, finding in enumerate(findings, 1)
+    )
+    report_lines.extend(["", "RECOMMENDATIONS"])
+    report_lines.extend(
+        f"{i}. {item}" for i, item in enumerate(recommendations, 1)
+    )
+    report_lines.extend(["", "LIMITATIONS"])
+    report_lines.extend(f"- {item}" for item in limitations)
+    report_lines.extend(["", "SOURCES"])
+    report_lines.extend(f"- {item}" for item in sources)
+
+    (output_dir / "week9_final_synthesis_report.txt").write_text(
+        "\n".join(report_lines), encoding="utf-8"
+    )
+
+    # A compact outline mapped to the required presentation structure.
+    slides = [
+        ("Slide 1 — Title",
+         "Climate Change and Disaster Resilience: Recorded climate-related "
+         "disaster patterns, 2000–2024."),
+        ("Slide 2 — Research Journey",
+         "Presentation 1: initial dataset, research question, and cleaning. "
+         "Presentation 2: annual trends, hazard comparisons, and data quality. "
+         "Presentation 3: heatmaps, synthesized findings, recommendations, "
+         "and limitations. Edit this summary to match your actual first "
+         "two presentations."),
+        ("Slides 3–6 — Final Visualizations",
+         "Use week9_final_annual_trend.png, "
+         "week9_final_hazard_comparison.png, "
+         "week9_heatmap_disaster_type_by_year.png, "
+         "week9_heatmap_top_countries_by_hazard.png, and "
+         "week9_impact_reporting_coverage.png. Choose the clearest four "
+         "and explain what each chart can and cannot show."),
+        ("Slide 7 — Key Findings",
+         "\n".join(f"- {x}" for x in findings[:5])),
+        ("Slide 8 — Recommendations",
+         "\n".join(f"- {x}" for x in recommendations)),
+        ("Slide 9 — Limitations",
+         "\n".join(f"- {x}" for x in limitations)),
+        ("Slide 10 — Sources",
+         "\n".join(f"- {x}" for x in sources)),
+    ]
+
+    slide_lines = ["ISS WEEK 9 — PRESENTATION OUTLINE"]
+    for title, body in slides:
+        slide_lines.extend(["", title, body])
+
+    (output_dir / "week9_slide_outline.txt").write_text(
+        "\n".join(slide_lines), encoding="utf-8"
+    )
+
+    findings_df = pd.DataFrame({
+        "finding_number": range(1, len(findings) + 1),
+        "finding": findings,
+    })
+    findings_df.to_csv(
+        output_dir / "week9_key_findings.csv", index=False
+    )
+    pd.DataFrame({
+        "recommendation_number": range(1, len(recommendations) + 1),
+        "recommendation": recommendations,
+    }).to_csv(
+        output_dir / "week9_recommendations.csv", index=False
+    )
+    pd.DataFrame({
+        "limitation_number": range(1, len(limitations) + 1),
+        "limitation": limitations,
+    }).to_csv(
+        output_dir / "week9_limitations.csv", index=False
+    )
+    pd.DataFrame({
+        "source_number": range(1, len(sources) + 1),
+        "source": sources,
+    }).to_csv(
+        output_dir / "week9_sources.csv", index=False
+    )
+
 
 
 def main():
@@ -565,6 +993,36 @@ def main():
     ])
 
     (WEEK7_OUTPUT_DIR / "week7_deeper_analysis_report.txt").write_text("\n".join(week7_report), encoding="utf-8")
+
+
+    # ---------- WEEK 9: FINAL PRESENTATION OUTPUTS ----------
+    print("\nRunning Week 9 final presentation analysis...")
+
+    WEEK9_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    week9_charts = create_week9_visualizations(
+        event_df=df,
+        country_year_df=grouped,
+        output_dir=WEEK9_OUTPUT_DIR,
+    )
+
+    create_week9_synthesis(
+        event_df=df,
+        country_year_df=grouped,
+        annual_impact=annual_impact,
+        severity_summary=severity_summary,
+        disaster_type_summary=disaster_type_summary,
+        source_path=source_path,
+        output_dir=WEEK9_OUTPUT_DIR,
+    )
+
+    print("\nWeek 9 outputs saved in:", WEEK9_OUTPUT_DIR.resolve())
+    for output_path in week9_charts:
+        print("-", output_path)
+
+    print("- Week 9 synthesis report")
+    print("- Week 9 slide outline")
+    print("- Week 9 key findings, recommendations, limitations, and sources")
 
     # ---------- CHART 1: Global recorded disaster events by year ----------
     annual = df.groupby("year").size().rename("recorded_disaster_events").reset_index()

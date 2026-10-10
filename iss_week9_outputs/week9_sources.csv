@@ -1,0 +1,5 @@
+source_number,source
+1,"EM-DAT, The International Disaster Database, Centre for Research on the Epidemiology of Disasters (CRED): https://public.emdat.be/data"
+2,World Bank Indicators API — Population (SP.POP.TOTL): https://api.worldbank.org/v2/country/all/indicator/SP.POP.TOTL
+3,"World Bank Indicators API — GDP per capita, current US$ (NY.GDP.PCAP.CD): https://api.worldbank.org/v2/country/all/indicator/NY.GDP.PCAP.CD"
+4,"Python libraries used: pandas, NumPy, Matplotlib, requests, and openpyxl. These are analysis tools, not independent data sources."
