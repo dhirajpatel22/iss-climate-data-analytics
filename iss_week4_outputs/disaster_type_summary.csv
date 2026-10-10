@@ -1,0 +1,6 @@
+disaster_type_clean,recorded_events,share_of_records
+flood,4128,0.5076866314106506
+storm,2702,0.3323084491452466
+extreme temperature,568,0.06985610625999263
+drought,417,0.05128520477186078
+wildfire,316,0.038863608412249416

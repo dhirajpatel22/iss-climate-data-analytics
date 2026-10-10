@@ -1,0 +1,23 @@
+ISS Week 4 — Data Quality and Coverage Summary
+Input file: emdat_public.xlsx
+Selected years: 2000–2024
+Selected disaster types: drought, extreme temperature, flood, storm, wildfire
+Event-country records after filters: 8,131
+Countries represented: 215
+Years represented: 25
+Rows with reported deaths: 5,706
+Rows with reported affected population: 6,439
+
+Key findings:
+- Flood is the most common disaster type, accounting for 50.8% of all records.
+- The top two disaster types account for 84.0% of all recorded climate-disaster records.
+- The country-level comparison is population-adjusted to reduce the effect of reporting intensity differences across countries.
+
+Interpretation cautions:
+- These are recorded disaster-country records, not necessarily unique global events.
+- Missing impact values are not treated as zero.
+- Disaster counts can be affected by reporting and database coverage changes.
+- Raw event totals are not a fair cross-country comparison because reporting intensity differs by country.
+- Country rankings in this project are population-adjusted and filtered for poor coverage to reduce reporting bias.
+- Disaster records alone do not prove climate change caused an individual event.
+- Population-adjusted totals can still be incomplete if impact reporting is missing.
