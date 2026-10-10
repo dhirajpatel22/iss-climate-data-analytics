@@ -1,0 +1,32 @@
+ISS Week 7 — Deeper Analysis
+Study period: 2000–2024
+Disaster categories: drought, extreme temperature, flood, storm, wildfire
+
+1. Annual trends
+Highest recorded event count: 2005 (383 records).
+Lowest recorded event count: 2014 (274 records).
+These are counts of recorded disaster-country records, not necessarily unique global disasters.
+
+2. Unusual years
+No years crossed the absolute 2-standard-deviation threshold for annual recorded event counts.
+
+3. Disaster severity
+Highest mean reported deaths per record among types with at least 10 reported-death records: drought (895.19).
+
+4. Country comparison
+- Bahamas: 17.2338 mean annual reported deaths per 100,000 people.
+- Myanmar: 17.0381 mean annual reported deaths per 100,000 people.
+- Micronesia (Federated States of): 15.7632 mean annual reported deaths per 100,000 people.
+- Grenada: 14.4703 mean annual reported deaths per 100,000 people.
+- Luxembourg: 12.8865 mean annual reported deaths per 100,000 people.
+
+5. Interpretation and limitations
+- Unusual years are statistical flags, not proof of a real-world cause.
+- Missing impact reports can bias averages and country comparisons.
+- A disaster-country record may not represent a unique global event.
+- Country comparisons require caution because reporting practices differ.
+- The five-year country coverage threshold does not guarantee complete data.
+- GDP per capita is an exploratory socioeconomic indicator, not proof of causation.
+- Disaster trends alone cannot establish that climate change caused these events.
+- Population-adjusted reported deaths are not a complete measure of disaster risk.
+- Review all exported charts and source data before presenting findings.

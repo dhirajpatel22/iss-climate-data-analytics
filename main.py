@@ -200,6 +200,171 @@ def build_gdp_vs_mortality_summary(country_year_df, min_years=4):
     return summary[summary["years_with_data"] >= min_years].sort_values("avg_deaths_per_100k", ascending=False).reset_index(drop=True)
 
 
+def build_annual_impact_summary(event_df, country_year_df):
+    """Summarize yearly event counts and reported human impacts."""
+    events = (
+        event_df.groupby("year")
+        .agg(
+            recorded_events=("recorded_event_count", "sum"),
+            countries_affected=("country", "nunique"),
+            records_with_death_data=("deaths_known", "sum"),
+            records_with_affected_data=("affected_known", "sum"),
+        )
+        .reset_index()
+    )
+
+    impacts = (
+        country_year_df.groupby("year")
+        .agg(
+            reported_deaths=("deaths_reported_sum", lambda s: s.sum(min_count=1)),
+            reported_affected=("affected_people_reported_sum", lambda s: s.sum(min_count=1)),
+        )
+        .reset_index()
+    )
+
+    annual = events.merge(impacts, on="year", how="left")
+    annual = annual.sort_values("year").reset_index(drop=True)
+
+    annual["events_3yr_avg"] = annual["recorded_events"].rolling(window=3, min_periods=2).mean()
+
+    mean_events = annual["recorded_events"].mean()
+    std_events = annual["recorded_events"].std(ddof=0)
+
+    if pd.notna(std_events) and std_events > 0:
+        annual["event_count_zscore"] = (annual["recorded_events"] - mean_events) / std_events
+    else:
+        annual["event_count_zscore"] = 0.0
+
+    annual["unusual_event_year"] = annual["event_count_zscore"].abs() >= 2
+    return annual
+
+
+def build_disaster_severity_summary(event_df, min_records=10):
+    """Compare reported human impacts by disaster type."""
+    df = event_df.copy()
+
+    summary = (
+        df.groupby("disaster_type_clean")
+        .agg(
+            recorded_events=("recorded_event_count", "sum"),
+            records_with_death_data=("deaths_reported", "count"),
+            records_with_affected_data=("people_affected_reported", "count"),
+            total_reported_deaths=("deaths_reported", lambda s: s.sum(min_count=1)),
+            total_reported_affected=("people_affected_reported", lambda s: s.sum(min_count=1)),
+            mean_deaths_per_record=("deaths_reported", "mean"),
+            median_deaths_per_record=("deaths_reported", "median"),
+            mean_affected_per_record=("people_affected_reported", "mean"),
+            median_affected_per_record=("people_affected_reported", "median"),
+        )
+        .reset_index()
+    )
+
+    summary["death_reporting_share"] = summary["records_with_death_data"] / summary["recorded_events"]
+    summary["affected_reporting_share"] = summary["records_with_affected_data"] / summary["recorded_events"]
+    summary["enough_death_data"] = summary["records_with_death_data"] >= min_records
+    summary["enough_affected_data"] = summary["records_with_affected_data"] >= min_records
+
+    return summary.sort_values("recorded_events", ascending=False).reset_index(drop=True)
+
+
+def build_country_impact_summary(country_year_df, min_years=5):
+    """Compare countries using reported impacts and population-adjusted rates."""
+    df = country_year_df.copy()
+
+    required = {"country", "year", "deaths_reported_sum", "affected_people_reported_sum", POPULATION_INDICATOR}
+    if not required.issubset(df.columns):
+        return pd.DataFrame()
+
+    df["population"] = pd.to_numeric(df[POPULATION_INDICATOR], errors="coerce")
+    df["deaths_per_100k"] = df["deaths_reported_sum"] / df["population"] * 100_000
+    df["affected_per_100k"] = df["affected_people_reported_sum"] / df["population"] * 100_000
+
+    summary = (
+        df.groupby("country")
+        .agg(
+            years_with_data=("year", "nunique"),
+            total_reported_deaths=("deaths_reported_sum", lambda s: s.sum(min_count=1)),
+            total_reported_affected=("affected_people_reported_sum", lambda s: s.sum(min_count=1)),
+            mean_annual_deaths_per_100k=("deaths_per_100k", "mean"),
+            mean_annual_affected_per_100k=("affected_per_100k", "mean"),
+            mean_population=("population", "mean"),
+        )
+        .reset_index()
+    )
+
+    return (
+        summary[summary["years_with_data"] >= min_years]
+        .sort_values("mean_annual_deaths_per_100k", ascending=False)
+        .reset_index(drop=True)
+    )
+
+
+def save_week7_charts(annual, severity, countries, output_dir):
+    """Create additional charts for the Week 7 presentation."""
+    chart_paths = []
+
+    fig, ax = plt.subplots(figsize=(10, 5.5))
+    ax.plot(annual["year"], annual["recorded_events"], marker="o", alpha=0.65, label="Annual records")
+    ax.plot(annual["year"], annual["events_3yr_avg"], linewidth=2.5, label="3-year rolling average")
+    ax.set_title("Recorded Climate-Related Disaster Trends")
+    ax.set_xlabel("Year")
+    ax.set_ylabel("Recorded disaster-country records")
+    ax.legend()
+    ax.grid(alpha=0.25)
+    fig.tight_layout()
+    path = output_dir / "week7_annual_disaster_trends.png"
+    fig.savefig(path, dpi=200, bbox_inches="tight")
+    plt.close(fig)
+    chart_paths.append(path)
+
+    severity_plot = severity[
+        severity["enough_death_data"] & severity["mean_deaths_per_record"].notna()
+    ].sort_values("mean_deaths_per_record").tail(10)
+
+    if not severity_plot.empty:
+        fig, ax = plt.subplots(figsize=(10, 5.5))
+        ax.barh(severity_plot["disaster_type_clean"], severity_plot["mean_deaths_per_record"])
+        ax.set_title("Average Reported Deaths per Record by Disaster Type")
+        ax.set_xlabel("Mean reported deaths per record")
+        ax.set_ylabel("Disaster type")
+        ax.grid(axis="x", alpha=0.25)
+        fig.tight_layout()
+        path = output_dir / "week7_disaster_severity.png"
+        fig.savefig(path, dpi=200, bbox_inches="tight")
+        plt.close(fig)
+        chart_paths.append(path)
+
+    country_plot = countries.dropna(subset=["mean_annual_deaths_per_100k"]).head(10).sort_values("mean_annual_deaths_per_100k")
+
+    if not country_plot.empty:
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax.barh(country_plot["country"], country_plot["mean_annual_deaths_per_100k"])
+        ax.set_title("Countries with Highest Average Reported Disaster Mortality")
+        ax.set_xlabel("Mean annual reported deaths per 100,000 people")
+        ax.set_ylabel("Country")
+        ax.grid(axis="x", alpha=0.25)
+        fig.tight_layout()
+        path = output_dir / "week7_country_mortality_comparison.png"
+        fig.savefig(path, dpi=200, bbox_inches="tight")
+        plt.close(fig)
+        chart_paths.append(path)
+
+    fig, ax = plt.subplots(figsize=(10, 5.5))
+    colors = ["#d95f02" if unusual else "#7570b3" for unusual in annual["unusual_event_year"]]
+    ax.bar(annual["year"], annual["recorded_events"], color=colors)
+    ax.set_title("Annual Disaster Records and Unusual Years")
+    ax.set_xlabel("Year")
+    ax.set_ylabel("Recorded disaster-country records")
+    ax.grid(axis="y", alpha=0.25)
+    fig.tight_layout()
+    path = output_dir / "week7_unusual_years.png"
+    fig.savefig(path, dpi=200, bbox_inches="tight")
+    plt.close(fig)
+    chart_paths.append(path)
+
+    return chart_paths
+
+
 def main():
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     source_path = Path(EM_DAT_FILE)
@@ -317,6 +482,81 @@ def main():
     disaster_type_summary.to_csv(disaster_type_output, index=False)
 
     gdp_vs_mortality = build_gdp_vs_mortality_summary(grouped)
+
+    print("Running Week 7 deeper analysis...")
+    annual_impact = build_annual_impact_summary(df, grouped)
+    severity_summary = build_disaster_severity_summary(df)
+    country_impact = build_country_impact_summary(grouped)
+
+    annual_impact.to_csv(OUTPUT_DIR / "week7_annual_impact_trends.csv", index=False)
+    severity_summary.to_csv(OUTPUT_DIR / "week7_disaster_severity_summary.csv", index=False)
+    country_impact.to_csv(OUTPUT_DIR / "week7_country_impact_comparison.csv", index=False)
+
+    week7_charts = save_week7_charts(annual_impact, severity_summary, country_impact, OUTPUT_DIR)
+
+    unusual_years = annual_impact[annual_impact["unusual_event_year"]].sort_values("event_count_zscore", ascending=False)
+    highest_event_year = annual_impact.loc[annual_impact["recorded_events"].idxmax()]
+    lowest_event_year = annual_impact.loc[annual_impact["recorded_events"].idxmin()]
+    top_severity = severity_summary[
+        severity_summary["enough_death_data"] & severity_summary["mean_deaths_per_record"].notna()
+    ].sort_values("mean_deaths_per_record", ascending=False)
+    top_mortality_countries = country_impact.dropna(subset=["mean_annual_deaths_per_100k"]).head(5)
+
+    week7_report = [
+        "ISS Week 7 — Deeper Analysis",
+        f"Study period: {START_YEAR}–{END_YEAR}",
+        f"Disaster categories: {', '.join(sorted(CLIMATE_DISASTER_TYPES))}",
+        "",
+        "1. Annual trends",
+        f"Highest recorded event count: {int(highest_event_year['year'])} ({int(highest_event_year['recorded_events']):,} records).",
+        f"Lowest recorded event count: {int(lowest_event_year['year'])} ({int(lowest_event_year['recorded_events']):,} records).",
+        "These are counts of recorded disaster-country records, not necessarily unique global disasters.",
+        "",
+        "2. Unusual years",
+    ]
+
+    if unusual_years.empty:
+        week7_report.append("No years crossed the absolute 2-standard-deviation threshold for annual recorded event counts.")
+    else:
+        for _, row in unusual_years.iterrows():
+            week7_report.append(f"- {int(row['year'])}: {int(row['recorded_events']):,} records; z-score {row['event_count_zscore']:.2f}.")
+
+    week7_report.extend(["", "3. Disaster severity"])
+
+    if top_severity.empty:
+        week7_report.append("Insufficient reported death data to rank disaster types using the minimum reporting threshold.")
+    else:
+        row = top_severity.iloc[0]
+        week7_report.append(
+            f"Highest mean reported deaths per record among types with at least 10 reported-death records: "
+            f"{row['disaster_type_clean']} ({row['mean_deaths_per_record']:.2f})."
+        )
+
+    week7_report.extend(["", "4. Country comparison"])
+
+    if top_mortality_countries.empty:
+        week7_report.append("No country comparisons could be produced with the available data.")
+    else:
+        for _, row in top_mortality_countries.iterrows():
+            week7_report.append(
+                f"- {row['country']}: {row['mean_annual_deaths_per_100k']:.4f} mean annual reported deaths per 100,000 people."
+            )
+
+    week7_report.extend([
+        "",
+        "5. Interpretation and limitations",
+        "- Unusual years are statistical flags, not proof of a real-world cause.",
+        "- Missing impact reports can bias averages and country comparisons.",
+        "- A disaster-country record may not represent a unique global event.",
+        "- Country comparisons require caution because reporting practices differ.",
+        "- The five-year country coverage threshold does not guarantee complete data.",
+        "- GDP per capita is an exploratory socioeconomic indicator, not proof of causation.",
+        "- Disaster trends alone cannot establish that climate change caused these events.",
+        "- Population-adjusted reported deaths are not a complete measure of disaster risk.",
+        "- Review all exported charts and source data before presenting findings.",
+    ])
+
+    (OUTPUT_DIR / "week7_deeper_analysis_report.txt").write_text("\n".join(week7_report), encoding="utf-8")
 
     # ---------- CHART 1: Global recorded disaster events by year ----------
     annual = df.groupby("year").size().rename("recorded_disaster_events").reset_index()
