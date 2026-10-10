@@ -1,0 +1,39 @@
+ISS WEEK 9 — PRESENTATION OUTLINE
+
+Slide 1 — Title
+Climate Change and Disaster Resilience: Recorded climate-related disaster patterns, 2000–2024.
+
+Slide 2 — Research Journey
+Presentation 1: initial dataset, research question, and cleaning. Presentation 2: annual trends, hazard comparisons, and data quality. Presentation 3: heatmaps, synthesized findings, recommendations, and limitations. Edit this summary to match your actual first two presentations.
+
+Slides 3–6 — Final Visualizations
+Use week9_final_annual_trend.png, week9_final_hazard_comparison.png, week9_heatmap_disaster_type_by_year.png, week9_heatmap_top_countries_by_hazard.png, and week9_impact_reporting_coverage.png. Choose the clearest four and explain what each chart can and cannot show.
+
+Slide 7 — Key Findings
+- The filtered dataset contains 8,131 recorded disaster-country records across 215 countries and 25 represented years (2000–2024).
+- Flood is the most frequently recorded hazard, accounting for 50.8% of records. This describes the dataset, not necessarily the true global frequency of each hazard.
+- The highest-recorded year is 2005 (383 records).
+- The lowest-recorded year is 2014 (274 records).
+- Reported deaths are available for 70.2% of event records, while reported affected-person values are available for 79.2%. Missing impact values limit comparisons of disaster severity.
+
+Slide 8 — Recommendations
+- Prioritize local hazard preparedness using regional risk assessments, infrastructure exposure, and community input; do not allocate resources based on raw counts alone.
+- Improve consistent reporting of deaths, affected populations, event dates, locations, and uncertainty so impacts can be compared more reliably across countries and years.
+- Use hazard-specific early-warning systems, evacuation plans, and resilient infrastructure appropriate to local conditions.
+- Combine disaster records with climate observations, exposure, vulnerability, and longer-term trend analyses before making claims about climate change attribution or causal effects.
+
+Slide 9 — Limitations
+- EM-DAT records represent reported disaster-country records; a row should not automatically be interpreted as a unique global event.
+- Recorded counts depend on database inclusion rules, reporting capacity, event classification, and changes in data coverage.
+- Blank death and affected-person fields represent missing or unreported information, not confirmed zero impact.
+- Population-adjusted counts do not account for differences in exposure, vulnerability, preparedness, or reporting quality.
+- Country and hazard rankings may be distorted by differences in coverage and reporting practices.
+- World Bank population and GDP indicators may be missing for some countries or years; GDP per capita is not a direct measure of preparedness or resilience.
+- This observational analysis cannot establish that climate change caused individual disasters or explain trends on its own.
+- The selected hazards and 2000–2024 period do not cover every disaster category or historical period.
+
+Slide 10 — Sources
+- EM-DAT, The International Disaster Database, Centre for Research on the Epidemiology of Disasters (CRED): https://public.emdat.be/data
+- World Bank Indicators API — Population (SP.POP.TOTL): https://api.worldbank.org/v2/country/all/indicator/SP.POP.TOTL
+- World Bank Indicators API — GDP per capita, current US$ (NY.GDP.PCAP.CD): https://api.worldbank.org/v2/country/all/indicator/NY.GDP.PCAP.CD
+- Python libraries used: pandas, NumPy, Matplotlib, requests, and openpyxl. These are analysis tools, not independent data sources.

@@ -17,8 +17,8 @@ Highest mean reported deaths per record among types with at least 10 reported-de
 - Bahamas: 17.2338 mean annual reported deaths per 100,000 people.
 - Myanmar: 17.0381 mean annual reported deaths per 100,000 people.
 - Micronesia (Federated States of): 15.7632 mean annual reported deaths per 100,000 people.
-- Grenada: 14.4703 mean annual reported deaths per 100,000 people.
 - Luxembourg: 12.8865 mean annual reported deaths per 100,000 people.
+- Somalia: 11.2109 mean annual reported deaths per 100,000 people.
 
 5. Interpretation and limitations
 - Unusual years are statistical flags, not proof of a real-world cause.

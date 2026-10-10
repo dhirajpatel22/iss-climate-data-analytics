@@ -109,7 +109,7 @@ Alternatively, update the `EM_DAT_FILE` setting at the top of the Python script 
 Run the following command in your terminal:
 
 ```bash
-pip install pandas requests matplotlib numpy openpyxl
+pip install -r requirements.txt
 ```
 
 If you use a virtual environment, activate it before installing the dependencies.
@@ -119,12 +119,23 @@ If you use a virtual environment, activate it before installing the dependencies
 From the project directory, execute:
 
 ```bash
-python iss_week4_climate_disaster_analysis.py
+python3 main.py
 ```
 
-The script reads and filters the EM-DAT spreadsheet, attempts to retrieve the World Bank indicators, creates summary datasets and visualizations, and saves the results in `iss_week4_outputs/`.
+The script reads and filters the EM-DAT spreadsheet, retrieves the World Bank indicators, creates summary datasets and visualizations, and saves the results in `iss_week4_outputs/`, `iss_week7_outputs/`, and `iss_week9_outputs/`.
 
 If the EM-DAT spreadsheet cannot be found, the script prints an error message and exits. If the World Bank API request fails, it attempts to continue without the socioeconomic indicators.
+
+### 5. Open the Streamlit dashboard
+
+First generate the analysis outputs, then start the dashboard from the project directory:
+
+```bash
+python3 main.py
+python3 -m streamlit run app.py
+```
+
+The dashboard opens at `http://localhost:8501`. Do not start it with `python3 app.py`; Streamlit apps should be launched with `python3 -m streamlit run app.py`. The dashboard includes interactive year, hazard, and country filters; trend, impact, and hazard-pattern views; filtered CSV downloads; and the Week 9 synthesis report. It reads the generated files from `iss_week4_outputs/`, `iss_week7_outputs/`, and `iss_week9_outputs/`.
 
 ## Methodology
 

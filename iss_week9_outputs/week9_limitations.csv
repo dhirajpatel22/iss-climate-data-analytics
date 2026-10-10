@@ -1,0 +1,9 @@
+limitation_number,limitation
+1,EM-DAT records represent reported disaster-country records; a row should not automatically be interpreted as a unique global event.
+2,"Recorded counts depend on database inclusion rules, reporting capacity, event classification, and changes in data coverage."
+3,"Blank death and affected-person fields represent missing or unreported information, not confirmed zero impact."
+4,"Population-adjusted counts do not account for differences in exposure, vulnerability, preparedness, or reporting quality."
+5,Country and hazard rankings may be distorted by differences in coverage and reporting practices.
+6,World Bank population and GDP indicators may be missing for some countries or years; GDP per capita is not a direct measure of preparedness or resilience.
+7,This observational analysis cannot establish that climate change caused individual disasters or explain trends on its own.
+8,The selected hazards and 2000–2024 period do not cover every disaster category or historical period.

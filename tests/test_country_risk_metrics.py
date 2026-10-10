@@ -1,6 +1,10 @@
 import pandas as pd
 
-from main import build_country_risk_summary, build_disaster_type_summary
+from main import (
+    build_country_impact_summary,
+    build_country_risk_summary,
+    build_disaster_type_summary,
+)
 
 
 def test_build_disaster_type_summary_highlights_hazard_mix():
@@ -57,3 +61,19 @@ def test_build_country_risk_summary_prioritizes_population_adjusted_risk():
     # The metric should be annualized and normalized, not just raw total counts.
     assert "avg_annual_events_per_100k" in summary.columns
     assert "total_events" in summary.columns
+
+
+def test_build_country_impact_summary_counts_only_valid_impact_years():
+    df = pd.DataFrame(
+        {
+            "country": ["Exampleland"] * 5,
+            "year": [2020, 2021, 2022, 2023, 2024],
+            "deaths_reported_sum": [10, pd.NA, pd.NA, 5, pd.NA],
+            "affected_people_reported_sum": [100, pd.NA, 200, pd.NA, pd.NA],
+            "SP.POP.TOTL": [1_000_000, 1_000_000, pd.NA, 1_000_000, 1_000_000],
+        }
+    )
+
+    summary = build_country_impact_summary(df, min_years=3)
+
+    assert summary.empty
