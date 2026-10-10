@@ -37,6 +37,7 @@ START_YEAR = 2000
 END_YEAR = 2024
 OUTPUT_DIR = Path("iss_week4_outputs")
 WEEK7_OUTPUT_DIR = Path("iss_week7_outputs")
+UNUSUAL_YEAR_Z_THRESHOLD = 1.5
 
 # Selected EM-DAT disaster types. Verify spelling against your downloaded file.
 CLIMATE_DISASTER_TYPES = {
@@ -236,7 +237,9 @@ def build_annual_impact_summary(event_df, country_year_df):
     else:
         annual["event_count_zscore"] = 0.0
 
-    annual["unusual_event_year"] = annual["event_count_zscore"].abs() >= 2
+    annual["unusual_event_year"] = (
+        annual["event_count_zscore"].abs() >= UNUSUAL_YEAR_Z_THRESHOLD
+    )
     return annual
 
 
@@ -518,7 +521,10 @@ def main():
     ]
 
     if unusual_years.empty:
-        week7_report.append("No years crossed the absolute 2-standard-deviation threshold for annual recorded event counts.")
+        week7_report.append(
+            "No years crossed the absolute "
+            f"{UNUSUAL_YEAR_Z_THRESHOLD:g}-standard-deviation threshold for annual recorded event counts."
+        )
     else:
         for _, row in unusual_years.iterrows():
             week7_report.append(f"- {int(row['year'])}: {int(row['recorded_events']):,} records; z-score {row['event_count_zscore']:.2f}.")

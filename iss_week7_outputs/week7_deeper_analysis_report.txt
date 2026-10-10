@@ -8,7 +8,7 @@ Lowest recorded event count: 2014 (274 records).
 These are counts of recorded disaster-country records, not necessarily unique global disasters.
 
 2. Unusual years
-No years crossed the absolute 2-standard-deviation threshold for annual recorded event counts.
+- 2005: 383 records; z-score 1.57.
 
 3. Disaster severity
 Highest mean reported deaths per record among types with at least 10 reported-death records: drought (895.19).
