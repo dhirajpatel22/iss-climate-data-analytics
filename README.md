@@ -1,4 +1,4 @@
-# ISS Week 4 — Climate Change and Disaster Resilience
+# ISS Week 7 — Climate Change and Disaster Resilience
 
 ## Project Overview
 
