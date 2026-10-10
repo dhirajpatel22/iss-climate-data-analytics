@@ -28,6 +28,7 @@ import sys
 import requests
 import pandas as pd
 import matplotlib.pyplot as plt
+import numpy as np
 
 # ---------- SETTINGS YOU CAN CHANGE ----------
 EM_DAT_FILE = "data/emdat_public.xlsx"  # Change this to your downloaded EM-DAT filename
@@ -155,6 +156,50 @@ def build_country_risk_summary(country_year_df, min_years=3, min_population=1_00
     return summary.sort_values("avg_annual_events_per_100k", ascending=False).reset_index(drop=True)
 
 
+def build_disaster_type_summary(event_df):
+    """Summarize the hazard mix so the report highlights the dominant disaster types."""
+    df = event_df.copy()
+    if df.empty:
+        return pd.DataFrame(columns=["disaster_type_clean", "recorded_events", "share_of_records"])
+    type_col = "disaster_type_clean" if "disaster_type_clean" in df.columns else "disaster_type"
+    summary = (
+        df[type_col]
+        .dropna()
+        .astype(str)
+        .str.strip()
+        .str.casefold()
+        .value_counts()
+        .rename_axis("disaster_type_clean")
+        .reset_index(name="recorded_events")
+    )
+    summary["share_of_records"] = summary["recorded_events"] / summary["recorded_events"].sum()
+    return summary.sort_values("recorded_events", ascending=False).reset_index(drop=True)
+
+
+def build_gdp_vs_mortality_summary(country_year_df, min_years=4):
+    """Build a country-level comparison for GDP per capita versus average disaster mortality."""
+    df = country_year_df.copy()
+    if df.empty:
+        return pd.DataFrame(columns=["country", "avg_gdp_per_capita", "avg_deaths_per_100k", "years_with_data"])
+
+    required = {"country", "year", "deaths_per_100k_population", "NY.GDP.PCAP.CD"}
+    missing = required - set(df.columns)
+    if missing:
+        return pd.DataFrame(columns=["country", "avg_gdp_per_capita", "avg_deaths_per_100k", "years_with_data"])
+
+    summary = (
+        df.dropna(subset=["country", "deaths_per_100k_population", "NY.GDP.PCAP.CD"])
+        .groupby("country", dropna=False)
+        .agg(
+            avg_gdp_per_capita=("NY.GDP.PCAP.CD", "mean"),
+            avg_deaths_per_100k=("deaths_per_100k_population", "mean"),
+            years_with_data=("year", "nunique"),
+        )
+        .reset_index()
+    )
+    return summary[summary["years_with_data"] >= min_years].sort_values("avg_deaths_per_100k", ascending=False).reset_index(drop=True)
+
+
 def main():
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     source_path = Path(EM_DAT_FILE)
@@ -267,6 +312,12 @@ def main():
     country_year_output = OUTPUT_DIR / "country_year_climate_disaster_summary.csv"
     grouped.to_csv(country_year_output, index=False)
 
+    disaster_type_summary = build_disaster_type_summary(df)
+    disaster_type_output = OUTPUT_DIR / "disaster_type_summary.csv"
+    disaster_type_summary.to_csv(disaster_type_output, index=False)
+
+    gdp_vs_mortality = build_gdp_vs_mortality_summary(grouped)
+
     # ---------- CHART 1: Global recorded disaster events by year ----------
     annual = df.groupby("year").size().rename("recorded_disaster_events").reset_index()
     fig, ax = plt.subplots(figsize=(10, 5.5))
@@ -309,6 +360,48 @@ def main():
     fig.savefig(chart2, dpi=200, bbox_inches="tight")
     plt.close(fig)
 
+    # ---------- CHART 3: Disaster type mix ----------
+    type_top = disaster_type_summary.head(5).sort_values("share_of_records")
+    fig, ax = plt.subplots(figsize=(9, 5.5))
+    type_top.plot(kind="barh", x="disaster_type_clean", y="share_of_records", ax=ax, color="#1b9e77")
+    ax.set_title("Most Common Climate-Related Disaster Types in the Dataset")
+    ax.set_xlabel("Share of all recorded climate-disaster records")
+    ax.set_ylabel("Disaster type")
+    ax.set_xlim(0, max(type_top["share_of_records"].max() * 1.2, 0.05))
+    ax.grid(axis="x", alpha=0.25)
+    fig.tight_layout()
+    chart3 = OUTPUT_DIR / "week4_disaster_type_mix.png"
+    fig.savefig(chart3, dpi=200, bbox_inches="tight")
+    plt.close(fig)
+
+    # ---------- CHART 4: GDP per capita versus disaster mortality ----------
+    if not gdp_vs_mortality.empty:
+        fig, ax = plt.subplots(figsize=(9, 6))
+        x = gdp_vs_mortality["avg_gdp_per_capita"]
+        y = gdp_vs_mortality["avg_deaths_per_100k"]
+        slope, intercept = np.polyfit(x, y, 1)
+        ax.scatter(x, y, alpha=0.7, s=50, color="#7b2cbf")
+        ax.plot(x.sort_values(), (slope * x.sort_values() + intercept), color="#444", linewidth=1.5, alpha=0.8)
+        corr = x.corr(y)
+        ax.set_title("Average GDP per Capita vs. Average Disaster Deaths per 100k")
+        ax.set_xlabel("Average GDP per capita (current USD)")
+        ax.set_ylabel("Average deaths per 100,000 people")
+        ax.grid(alpha=0.25)
+        ax.text(
+            0.02,
+            0.97,
+            f"Correlation: {corr:.2f}",
+            transform=ax.transAxes,
+            fontsize=10,
+            bbox=dict(boxstyle="round", facecolor="white", alpha=0.8),
+        )
+        fig.tight_layout()
+        chart4 = OUTPUT_DIR / "week4_gdp_vs_deaths.png"
+        fig.savefig(chart4, dpi=200, bbox_inches="tight")
+        plt.close(fig)
+    else:
+        chart4 = None
+
     # Basic quality/coverage report to prevent overclaiming.
     report = [
         "ISS Week 4 — Data Quality and Coverage Summary",
@@ -320,6 +413,11 @@ def main():
         f"Years represented: {df['year'].nunique():,}",
         f"Rows with reported deaths: {df['deaths_reported'].notna().sum():,}",
         f"Rows with reported affected population: {df['people_affected_reported'].notna().sum():,}",
+        "",
+        "Key findings:",
+        f"- {disaster_type_summary.iloc[0]['disaster_type_clean'].title()} is the most common disaster type, accounting for {disaster_type_summary.iloc[0]['share_of_records'] * 100:.1f}% of all records.",
+        f"- The top two disaster types account for {disaster_type_summary.head(2)['share_of_records'].sum() * 100:.1f}% of all recorded climate-disaster records.",
+        f"- The country-level comparison is population-adjusted to reduce the effect of reporting intensity differences across countries.",
         "",
         "Interpretation cautions:",
         "- These are recorded disaster-country records, not necessarily unique global events.",
@@ -337,11 +435,16 @@ def main():
     print("2.", country_year_output)
     print("3.", chart1)
     print("4.", chart2)
-    print("5.", OUTPUT_DIR / "week4_data_quality_notes.txt")
+    print("5.", chart3)
+    if chart4 is not None:
+        print("6.", chart4)
+    print("7.", OUTPUT_DIR / "week4_data_quality_notes.txt")
     print("\nQuick data overview:")
     print(f"- Filtered event-country records: {len(df):,}")
     print(f"- Countries: {df['country'].nunique():,}")
     print(f"- Years: {df['year'].min()}–{df['year'].max()}")
+    if not disaster_type_summary.empty:
+        print(f"- Most common hazard: {disaster_type_summary.iloc[0]['disaster_type_clean'].title()} ({disaster_type_summary.iloc[0]['share_of_records'] * 100:.1f}% of records)")
     print("\nDo not present results until you have reviewed the output charts and data-quality notes.")
 
 

@@ -1,6 +1,27 @@
 import pandas as pd
 
-from main import build_country_risk_summary
+from main import build_country_risk_summary, build_disaster_type_summary
+
+
+def test_build_disaster_type_summary_highlights_hazard_mix():
+    df = pd.DataFrame(
+        {
+            "disaster_type_clean": [
+                "flood",
+                "flood",
+                "storm",
+                "storm",
+                "drought",
+                "wildfire",
+            ]
+        }
+    )
+
+    summary = build_disaster_type_summary(df)
+
+    assert summary.iloc[0]["disaster_type_clean"] == "flood"
+    assert summary.iloc[0]["share_of_records"] > 0.25
+    assert abs(summary["share_of_records"].sum() - 1.0) < 1e-9
 
 
 def test_build_country_risk_summary_prioritizes_population_adjusted_risk():

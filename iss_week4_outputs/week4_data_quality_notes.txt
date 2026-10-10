@@ -8,6 +8,11 @@ Years represented: 25
 Rows with reported deaths: 5,706
 Rows with reported affected population: 6,439
 
+Key findings:
+- Flood is the most common disaster type, accounting for 50.8% of all records.
+- The top two disaster types account for 84.0% of all recorded climate-disaster records.
+- The country-level comparison is population-adjusted to reduce the effect of reporting intensity differences across countries.
+
 Interpretation cautions:
 - These are recorded disaster-country records, not necessarily unique global events.
 - Missing impact values are not treated as zero.
