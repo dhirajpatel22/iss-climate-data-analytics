@@ -36,6 +36,7 @@ SHEET_NAME = 0                     # Usually the first worksheet
 START_YEAR = 2000
 END_YEAR = 2024
 OUTPUT_DIR = Path("iss_week4_outputs")
+WEEK7_OUTPUT_DIR = Path("iss_week7_outputs")
 
 # Selected EM-DAT disaster types. Verify spelling against your downloaded file.
 CLIMATE_DISASTER_TYPES = {
@@ -367,6 +368,7 @@ def save_week7_charts(annual, severity, countries, output_dir):
 
 def main():
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    WEEK7_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     source_path = Path(EM_DAT_FILE)
     if not source_path.exists():
         print(f"\nEM-DAT file not found: {source_path.resolve()}")
@@ -488,11 +490,11 @@ def main():
     severity_summary = build_disaster_severity_summary(df)
     country_impact = build_country_impact_summary(grouped)
 
-    annual_impact.to_csv(OUTPUT_DIR / "week7_annual_impact_trends.csv", index=False)
-    severity_summary.to_csv(OUTPUT_DIR / "week7_disaster_severity_summary.csv", index=False)
-    country_impact.to_csv(OUTPUT_DIR / "week7_country_impact_comparison.csv", index=False)
+    annual_impact.to_csv(WEEK7_OUTPUT_DIR / "week7_annual_impact_trends.csv", index=False)
+    severity_summary.to_csv(WEEK7_OUTPUT_DIR / "week7_disaster_severity_summary.csv", index=False)
+    country_impact.to_csv(WEEK7_OUTPUT_DIR / "week7_country_impact_comparison.csv", index=False)
 
-    week7_charts = save_week7_charts(annual_impact, severity_summary, country_impact, OUTPUT_DIR)
+    week7_charts = save_week7_charts(annual_impact, severity_summary, country_impact, WEEK7_OUTPUT_DIR)
 
     unusual_years = annual_impact[annual_impact["unusual_event_year"]].sort_values("event_count_zscore", ascending=False)
     highest_event_year = annual_impact.loc[annual_impact["recorded_events"].idxmax()]
@@ -556,7 +558,7 @@ def main():
         "- Review all exported charts and source data before presenting findings.",
     ])
 
-    (OUTPUT_DIR / "week7_deeper_analysis_report.txt").write_text("\n".join(week7_report), encoding="utf-8")
+    (WEEK7_OUTPUT_DIR / "week7_deeper_analysis_report.txt").write_text("\n".join(week7_report), encoding="utf-8")
 
     # ---------- CHART 1: Global recorded disaster events by year ----------
     annual = df.groupby("year").size().rename("recorded_disaster_events").reset_index()
@@ -679,6 +681,13 @@ def main():
     if chart4 is not None:
         print("6.", chart4)
     print("7.", OUTPUT_DIR / "week4_data_quality_notes.txt")
+    print("Week 7 outputs saved in:", WEEK7_OUTPUT_DIR.resolve())
+    for output_path in week7_charts:
+        print("-", output_path)
+    print("-", WEEK7_OUTPUT_DIR / "week7_annual_impact_trends.csv")
+    print("-", WEEK7_OUTPUT_DIR / "week7_disaster_severity_summary.csv")
+    print("-", WEEK7_OUTPUT_DIR / "week7_country_impact_comparison.csv")
+    print("-", WEEK7_OUTPUT_DIR / "week7_deeper_analysis_report.txt")
     print("\nQuick data overview:")
     print(f"- Filtered event-country records: {len(df):,}")
     print(f"- Countries: {df['country'].nunique():,}")
