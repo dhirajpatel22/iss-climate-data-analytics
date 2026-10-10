@@ -1,6 +1,6 @@
 import pandas as pd
 
-from iss_week4_climate_disaster_analysis import build_country_risk_summary
+from main import build_country_risk_summary
 
 
 def test_build_country_risk_summary_prioritizes_population_adjusted_risk():
